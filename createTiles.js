@@ -2,11 +2,15 @@ import { COORDINATES } from "./coordinates.js";
 import { TILE_WIDTH, TILE_HEIGHT, images } from "./images.js";
 
 const TILE_DEPTH = 7;
-const TOTAL_OFFSET_TOP = 30;
-const TOTAL_OFFSET_LEFT = 80;
 const TILE_ROUNDNESS = 7;
+const VERTICAL_OFFSET = 40; // Space from top of container
 
-export function createTiles(options) {
+export function createTiles(options, gameId = "game") {
+    // Calculate maximum x coordinate to determine center offset
+    const maxX = Math.max(...COORDINATES.map(coord => coord[0]));
+    const containerWidth = $(`#${gameId}`).width();
+    const HORIZONTAL_OFFSET = (containerWidth - (maxX * TILE_WIDTH) - (TILE_DEPTH * 4)) / 2;
+
     for (let counter = 0; counter < COORDINATES.length; counter++) {
         const coord = COORDINATES[counter];
         const [x, y, z] = coord;
@@ -15,13 +19,15 @@ export function createTiles(options) {
         const tile = $("<div></div>")
             .addClass("tile")
             .css({
-                left: x * TILE_WIDTH + TILE_DEPTH * z + TOTAL_OFFSET_LEFT + "px",
-                top: y * TILE_HEIGHT + TILE_DEPTH * z + TOTAL_OFFSET_TOP + "px",
+                left: (x * TILE_WIDTH + TILE_DEPTH * z + HORIZONTAL_OFFSET) + "px",
+                top: (y * TILE_HEIGHT + TILE_DEPTH * z + VERTICAL_OFFSET) + "px",
                 zIndex: z,
             })
             .attr("coord", coord.toString())
-            .attr("type", image.attr("type"));
+            .attr("type", image.attr("type"))
+            .attr("game-id", gameId);
 
+        // Rest of the tile creation code remains the same...
         const tileFront = $("<div></div>")
             .addClass("tileFront")
             .css({
@@ -30,10 +36,11 @@ export function createTiles(options) {
                 borderRadius: TILE_ROUNDNESS + "px",
             })
             .attr("coord", coord.toString())
+            .attr("game-id", gameId)
             .click(() => {
                 options.clickFunction(coord);
             })
-            .append(image);
+            .append(image.clone());
 
         const tileBack = $("<div></div>")
             .addClass("tileBack")
@@ -47,8 +54,9 @@ export function createTiles(options) {
                     ${2 * TILE_DEPTH}px
                     ${TILE_ROUNDNESS}px
                     ${2 * TILE_DEPTH}px`,
-            });
+            })
+            .attr("game-id", gameId);
 
-        tile.append(tileBack).append(tileFront).appendTo("#game");
+        tile.append(tileBack).append(tileFront).appendTo(`#${gameId}`);
     }
 }

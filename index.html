@@ -22,7 +22,7 @@
         <meta property="og:site_name" content="Mahjong Solitaire">
     </head>
     <body>
-            <header>Mahjong solitaire</header>
+            <header>2-Player Mahjong Solitaire</header>
 
             <div id="wrapper">
                 <main>
@@ -81,19 +81,34 @@
                         </p>                               
                     </section>
 
-                    <section id="game"></section>     
+                    <div id="game-container">
+                        <section id="game1" class="game-player">
+                            <div class="player-label">Player 1</div>
+                        </section>
+                        <section id="game2" class="game-player">
+                            <div class="player-label">Player 2 (Bot)</div>
+                        </section>
+                    </div>  <!-- This is the part of the HTML controlled purely through jQuery, the main game-->   
                 </main>
         
                 <footer>
-                    <span id="statusText"></span>
-                    <span id="controls">
-                        <button id="hintButton">Hint</button>
+                    <div class="player-status-wrapper">
+                        <div class="player-status">
+                            <span id="statusText1" class="status-text"></span>
+                            <button id="hintButton1" class="hint-button">Hint (P1)</button>
+                        </div>
+                        <div class="player-status">
+                            <span id="statusText2" class="status-text"></span>
+                        </div>
+                    </div>
+                    <div id="controls">
                         <button id="restartButton">Restart</button>
                         <button id="infoButton">Info</button>
-                    </span>
-                </footer> 
+                    </div>
+                </footer>
             </div>
         
+            <!-- Code includes jQuery  -->
         <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.5.1/jquery.min.js" integrity="sha512-bLT0Qm9VnAYZDflyKcBaQ2gg0hSYNQrJ8RilYldYQ1FxQYoCLtUjuuRuZo+fjqhx/qtq/1itJ0C2ejDxltZVFg==" crossorigin="anonymous"></script>
         <script src="main.js" type="module"></script>
     </body>

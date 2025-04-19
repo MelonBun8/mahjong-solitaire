@@ -1,7 +1,8 @@
-export const images = [];
+export const images = []; // exported BY REFERENCE! so the below populating code is run and the filled images array available to main.js
 export const TILE_WIDTH = 56;
 export const TILE_HEIGHT = 80;
 
+// loads up all possible images from the img folder.
 const types = [
     { name: "dots", number: 9, multiplicity: 4 },
     { name: "bamboo", number: 9, multiplicity: 4 },

@@ -4,6 +4,14 @@
     box-sizing: border-box;
 }
 
+/* Adjust wrapper width for two games */
+#wrapper {
+    width: calc(var(--base-width) * 1.5);
+}
+
+
+
+/* Rest of your existing CSS remains the same */
 :root {
     --font-color: #ddd;
     --background-color: rgb(10, 8, 30);
@@ -16,8 +24,9 @@
     --link-color: orange;
     --button-color: rgb(80, 29, 161);
     --button-hover-color: rgb(113, 29, 161);
-    --base-width: 1000px;
+    --base-width: 1400px; /* Increased from 1000px */
     --base-height: 700px;
+
 }
 
 body {
@@ -38,12 +47,10 @@ strong {
 }
 
 /* wrapper */
-
 #wrapper {
-    transform-origin: top;
-    width: var(--base-width);
+    width: calc(var(--base-width) * 1.8);
+    max-width: 90vw;
 }
-
 /* header */
 
 header {
@@ -58,19 +65,84 @@ header {
 main {
     position: relative;
 }
-
-/* footer */
-
-footer {
-    padding-top: 15px;
+/* Add these new styles to your existing CSS */
+.game-player {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    background: url("./img/background-small.jpg") no-repeat center;
+    background-size: cover;
+    border-radius: 5px;
+    opacity: 0;
+    overflow: visible;
+    margin: 0;
+    display: flex;
+    justify-content: center;
 }
 
-#statusText {
-    float: left;
+.player-label {
+    position: absolute;
+    top: 10px;
+    left: 10%;
+    transform: translateX(-50%);
+    background-color: rgba(0,0,0,0.7);
+    padding: 5px 10px;
+    border-radius: 5px;
+    font-weight: bold;
+    z-index: 1000; /* Higher than tiles */
+    pointer-events: none; /* Allows clicks to pass through to tiles */
+    white-space: nowrap;
+}
+
+/* Update the game-container to properly center the games */
+#game-container {
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    height: var(--base-height);
+    width: 100%;
+    overflow: visible;
+    position: relative; /* Establish stacking context */
+}
+
+/* Update the existing #game style to be more specific */
+#game1, #game2 {
+    height: 100%;
+}
+
+/* footer */
+footer {
+    display: flex;
+    justify-content: space-between;
+    flex-direction:column;
+    align-items: center;
+    gap: 1rem; 
+    padding-top: 15px;
+    width: 100%;
+}
+.player-status-wrapper {
+    width:100%;
+    display: flex;
+    justify-content: space-between; /* space out player-status blocks */
+}
+.player-status {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-text {
+    min-width: 200px;
+}
+
+.hint-button {
+    margin-left: 0 !important;
 }
 
 #controls {
-    float: right;
+    display: flex;
+    gap: 10px;
+    float: none;
 }
 
 /* buttons */
@@ -143,9 +215,14 @@ button:hover {
 
 /* tile */
 
+
+/* Update the tile z-index to be below labels */
 .tile {
     position: absolute;
+    transform: translateX(0);
+    z-index: 100; /* Lower than labels */
 }
+
 
 .tileFront {
     position: absolute;
@@ -188,8 +265,23 @@ button:hover {
     border: 1px solid var(--tile-border-color);
 }
 
-/* media queries */
+/* media queries to match different screen sizes*/
+@media (max-width: 1800px) {
+    #wrapper {
+        transform: scale(0.9);
+    }
+}
 
+@media (max-width: 1600px) {
+    #wrapper {
+        transform: scale(0.8);
+    }
+}
+@media (max-width: 1515px) {
+    .game-player {
+        padding-left: 60px; /* Slightly reduced padding for smaller screens */
+    }
+}
 @media (max-width: 1010px) {
     .tile {
         transform: translateX(-65px);
@@ -285,4 +377,39 @@ button:hover {
     #wrapper {
         transform: scale(0.35);
     }
+}
+
+@media (max-width: 1515px) {
+    :root {
+        --base-width: 1000px;
+    }
+    #wrapper {
+        width: var(--base-width);
+    }
+}
+
+.difficulty-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-right: 10px;
+}
+
+select {
+    background-color: var(--button-color);
+    color: var(--font-color);
+    border: none;
+    padding: 5px 10px;
+    font-family: inherit;
+    font-size: inherit;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+select:hover {
+    background-color: var(--button-hover-color);
+}
+
+select:focus {
+    outline: none;
 }

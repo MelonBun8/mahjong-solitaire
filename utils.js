@@ -1,4 +1,4 @@
-export function shuffle(list) {
+export function shuffle(list) { 
     for (let i = list.length - 1; i > 0; i--) {
         const j = Math.floor(Math.random() * (i + 1));
         [list[i], list[j]] = [list[j], list[i]];
@@ -33,14 +33,20 @@ export function sleep(milliseconds) {
     return new Promise((resolve) => setTimeout(resolve, milliseconds));
 }
 
-export function writeStatus(txt) {
-    $("#statusText").html(txt);
+export function writeStatus(txt, player = 0) {
+    if (player === 1) {
+        $("#statusText1").html(txt);
+    } else if (player === 2) {
+        $("#statusText2").html(txt);
+    } else {
+        $("#statusText1, #statusText2").html(txt);
+    }
 }
 
-export function tileAt(coord) {
-    return $(`.tile[coord="${coord.toString()}"]`);
+export function tileAt(coord, gameId = "game") {
+    return $(`.tile[coord="${coord.toString()}"][game-id="${gameId}"]`);
 }
 
-export function tileFrontAt(coord) {
-    return $(`.tileFront[coord="${coord.toString()}"]`);
+export function tileFrontAt(coord, gameId = "game") {
+    return $(`.tileFront[coord="${coord.toString()}"][game-id="${gameId}"]`);
 }
