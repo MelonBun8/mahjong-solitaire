@@ -265,6 +265,143 @@ button:hover {
     border: 1px solid var(--tile-border-color);
 }
 
+/* Score display styles */
+.player-score {
+    margin-left: 10px;
+    display: inline-block;
+    font-size: 0.9em;
+}
+
+/* Leader indicator */
+.leading {
+    color: #4caf50;
+    text-shadow: 0 0 5px #4caf50;
+}
+
+.tied {
+    color: #FFC107;
+    text-shadow: 0 0 5px #FFC107;
+}
+
+/* Points animation */
+.points-animation {
+    position: absolute;
+    font-size: 20px;
+    font-weight: bold;
+    z-index: 1000;
+    pointer-events: none;
+    text-shadow: 0px 0px 3px rgba(0,0,0,0.7);
+}
+
+/* Game outcome overlay styles */
+#game-outcome-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.8);
+    z-index: 9999;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+#game-outcome-container {
+    background-color: var(--background-color);
+    border-radius: 10px;
+    padding: 30px;
+    text-align: center;
+    max-width: 500px;
+    width: 90%;
+    box-shadow: 0 0 20px rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+#outcome-message {
+    font-size: 32px;
+    margin-bottom: 20px;
+    color: #FFC107;
+    text-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+}
+
+#outcome-scores {
+    display: flex;
+    justify-content: space-around;
+    margin: 20px 0;
+}
+
+.outcome-player-score {
+    padding: 15px;
+    border-radius: 5px;
+    width: 45%;
+    transition: all 0.3s ease;
+}
+
+.outcome-player-label {
+    font-size: 18px;
+    margin-bottom: 10px;
+}
+
+.outcome-player-points {
+    font-size: 24px;
+}
+
+/* Winner/loser styles */
+.winner {
+    color: #4caf50;
+    text-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+    transform: scale(1.05);
+}
+
+.loser {
+    color: #999;
+    opacity: 0.8;
+}
+
+#play-again-button {
+    background-color: #4caf50;
+    color: white;
+    padding: 10px 20px;
+    font-size: 18px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    margin-top: 20px;
+    transition: all 0.3s ease;
+}
+
+#play-again-button:hover {
+    background-color: #3e8e41;
+    transform: scale(1.05);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    #titleScreen h1 {
+        font-size: 2.5rem;
+    }
+    
+    #titleScreen img {
+        max-width: 300px;
+    }
+    
+    #titleScreen #startButton {
+        padding: 12px 30px;
+        font-size: 1.2rem;
+    }
+    
+    #titleScreen p {
+        font-size: 1rem;
+        padding: 0 20px;
+    }
+}
+
+/* Game container fade-in effect */
+#game1, #game2, #controls {
+    transition: opacity 0.5s ease;
+}
+
 /* media queries to match different screen sizes*/
 @media (max-width: 1800px) {
     #wrapper {

@@ -12,6 +12,12 @@ import {
 import { isOpen, COORDINATES } from "./coordinates.js";
 import {} from "./infoText.js";
 import { createAI } from "./mahjongAI.js";
+import { ScoreSystem } from "./scoreSystem.js";
+import { GameOutcome } from "./gameOutcome.js";
+
+// Global instances for score and outcome
+const scoreSystem = new ScoreSystem();
+const gameOutcome = new GameOutcome();
 
 class GameInstance {
     constructor(gameId, playerNumber) {
@@ -33,7 +39,7 @@ class GameInstance {
     clickTileAt(coord) {
         if (!this.isActive) return;
         if (!isOpen(coord, this.currentCoords)) return;
-
+    
         if (this.selectedCoord) {
             if (coord.toString() === this.selectedCoord.toString()) {
                 this.unselectTileAt(coord);
@@ -42,7 +48,9 @@ class GameInstance {
                 const tile = tileAt(coord, this.gameId);
                 const selectedTile = tileAt(this.selectedCoord, this.gameId);
                 if (tile.attr("type") === selectedTile.attr("type")) {
-                    this.executeMove(tile, selectedTile, coord, this.selectedCoord);
+                    // Calculate unlocked tiles before executing the move
+                    const unlockedTiles = this.calculateUnlockedTiles([this.selectedCoord, coord]);
+                    this.executeMove(tile, selectedTile, coord, this.selectedCoord, unlockedTiles);
                     return;
                 }
             }
@@ -50,9 +58,17 @@ class GameInstance {
         this.selectTileAt(coord);
     }
 
-    async executeMove(tile, selectedTile, coord, coord2) { 
+    // Replace the executeMove method in your GameInstance class with this updated version
+    async executeMove(tile, selectedTile, coord, coord2, unlockedTiles = 0) { 
         this.selectedCoord = null;
         this.hintCoord = null;
+        
+        // Add points for this move, including the unlocked tiles information
+        const points = scoreSystem.addPoints(this.playerNumber, unlockedTiles);
+        
+        // Animate the points
+        this.animatePoints(points, coord);
+        
         selectedTile.animate({ opacity: 0 }, "fast");
         tile.animate({ opacity: 0 }, "fast", async () => {
             selectedTile.hide();
@@ -67,9 +83,17 @@ class GameInstance {
                 if (this.playerNumber === 1) {
                     game2.isActive = false;
                     writeStatus("Player 1 won!", 2);
+                    
+                    // Show win screen after a brief delay
+                    await sleep(1000);
+                    gameOutcome.show("win", scoreSystem.scores);
                 } else {
                     game1.isActive = false;
                     writeStatus("Player 2 won!", 1);
+                    
+                    // Show lose screen after a brief delay
+                    await sleep(1000);
+                    gameOutcome.show("lose", scoreSystem.scores);
                 }
             } else {
                 await this.checkMovePossible();
@@ -79,6 +103,67 @@ class GameInstance {
                     await game2.makeAIMove();
                 }
             }
+        });
+    }
+
+
+    calculateUnlockedTiles(move) {
+        const [coord1, coord2] = move;
+        
+        // Make a copy of current coords
+        const originalCoords = [...this.currentCoords];
+        
+        // Count original open tiles (excluding the two we're about to remove)
+        let originalOpenCount = 0;
+        for (const coord of originalCoords) {
+            if (coord.toString() !== coord1.toString() && 
+                coord.toString() !== coord2.toString() &&
+                isOpen(coord, originalCoords)) {
+                originalOpenCount++;
+            }
+        }
+        
+        // Remove the two tiles to simulate making this move
+        const tempCoords = originalCoords.filter(c => 
+            c.toString() !== coord1.toString() && 
+            c.toString() !== coord2.toString()
+        );
+        
+        // Count new open tiles
+        let newOpenCount = 0;
+        for (const coord of tempCoords) {
+            if (isOpen(coord, tempCoords)) {
+                newOpenCount++;
+            }
+        }
+        
+        // Return the difference (how many new tiles were unlocked)
+        return Math.max(0, newOpenCount - originalOpenCount);
+    }
+    // Animate points display
+    animatePoints(points, coord) {
+        const [x, y, z] = coord;
+        const offset = this.gameId === "game1" ? 0 : $("#game1").width() + 20;
+        
+        // Create points element
+        const pointsEl = $("<div></div>")
+            .addClass("points-animation")
+            .text(`+${points}`)
+            .css({
+                left: (x * 56 + offset + 30) + "px",
+                top: (y * 80 + 40) + "px",
+                color: this.playerNumber === 1 ? "#4caf50" : "#ff9800"
+            });
+        
+        // Add to body and animate
+        $("body").append(pointsEl);
+        
+        // Animate upwards and fade out
+        pointsEl.animate({
+            top: "-=50",
+            opacity: 0
+        }, 1000, function() {
+            $(this).remove();
         });
     }
 
@@ -112,16 +197,53 @@ class GameInstance {
                 }
             }
         }
+        
+        // Update leader indicator based on current scores
+        this.updateLeaderIndicator();
+        
         if (moves.length === 0 && this.currentCoords.length > 0) {
             this.isActive = false;
             writeStatus("No moves left!", this.playerNumber);
+            
+            // Check if both games are stuck
             if (game1.isActive === false && game2.isActive === false) {
                 writeStatus("Both players are stuck. Game over! 🚧");
+                
+                // Show tie/stuck screen after a brief delay
+                await sleep(1000);
+                gameOutcome.show("stuck", scoreSystem.scores);
+            } 
+            // If only the player is stuck, show the lose screen
+            else if (this.playerNumber === 1) {
+                await sleep(1000);
+                gameOutcome.show("lose", scoreSystem.scores);
+            }
+            // If only the AI is stuck, show the win screen
+            else if (this.playerNumber === 2) {
+                await sleep(1000);
+                gameOutcome.show("win", scoreSystem.scores);
             }
         } else {
             writeStatus(`${moves.length} moves available`, this.playerNumber);
         }
+        
         if (moves.length > 0) this.hintCoord = randEl(randEl(moves));
+    }
+    
+    // Update the leader indicator based on current scores
+    updateLeaderIndicator() {
+        const leader = scoreSystem.getCurrentLeader();
+        
+        // Remove all leader classes
+        $(".player-label").removeClass("leading tied");
+        
+        if (leader === 0) {
+            // It's a tie
+            $(".player-label").addClass("tied");
+        } else {
+            // Mark the leader
+            $(`.player-label:eq(${leader - 1})`).addClass("leading");
+        }
     }
     
     async makeAIMove() {
@@ -150,6 +272,9 @@ let game1, game2;
 $(document).ready(async () => {
     shuffle(images);
     
+    // Add score displays to player labels
+    addScoreDisplays();
+    
     // Initialize both game instances
     game1 = new GameInstance("game1", 1);
     game2 = new GameInstance("game2", 2);
@@ -166,7 +291,20 @@ $(document).ready(async () => {
     
     // Add buttons to change difficulty
     addDifficultyControls();
+    
+    // Initialize scores
+    scoreSystem.updateScoreDisplay();
 });
+
+function addScoreDisplays() {
+    // Add score elements to player labels
+    $(".player-label").append('<div class="player-score"><span id="score1">Score: 0</span></div>');
+    $(".player-label:eq(1)").find(".player-score").html('<span id="score2">Score: 0</span>');
+    
+    // Add player numbers to make it clearer
+    $(".player-label:eq(0)").prepend("🧑 ");
+    $(".player-label:eq(1)").prepend("🤖 ");
+}
 
 function addDifficultyControls() {
     // Add difficulty selector to the footer
@@ -195,6 +333,10 @@ $("#restartButton").click(async () => {
     $("#game1, #game2").animate({ opacity: 0 }, "fast");
     await sleep(200);
     shuffle(images);
+    
+    // Reset scores
+    scoreSystem.reset();
+    
     await game1.restart();
     await game2.restart();
     $("#game1, #game2").animate({ opacity: 1 }, "fast");

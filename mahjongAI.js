@@ -34,6 +34,41 @@ class MahjongAI {
         }
         return moves;
     }
+    
+    // Count how many new tiles would be unlocked by making a move
+    countUnlockedTiles(move) {
+        const [coord1, coord2] = move;
+        
+        // Make a copy of current coords
+        const originalCoords = [...this.game.currentCoords];
+        
+        // Count original open tiles (excluding the two we're about to remove)
+        let originalOpenCount = 0;
+        for (const coord of originalCoords) {
+            if (coord.toString() !== coord1.toString() && 
+                coord.toString() !== coord2.toString() &&
+                isOpen(coord, originalCoords)) {
+                originalOpenCount++;
+            }
+        }
+        
+        // Remove the two tiles to simulate making this move
+        const tempCoords = originalCoords.filter(c => 
+            c.toString() !== coord1.toString() && 
+            c.toString() !== coord2.toString()
+        );
+        
+        // Count new open tiles
+        let newOpenCount = 0;
+        for (const coord of tempCoords) {
+            if (isOpen(coord, tempCoords)) {
+                newOpenCount++;
+            }
+        }
+        
+        // Return the difference (how many new tiles were unlocked)
+        return Math.max(0, newOpenCount - originalOpenCount);
+    }
 }
 
 // Easy Level: Simple Reflex Agent
@@ -52,15 +87,18 @@ export class EasyAI extends MahjongAI {
         if (moves.length === 0) return;
         
         // Select a random move
-        const [tile1, tile2] = randEl(moves);
+        const randomMove = randEl(moves);
         
         // Execute the move
-        await this.executeAIMove(tile1, tile2);
+        await this.executeAIMove(randomMove[0], randomMove[1]);
     }
     
     async executeAIMove(coord1, coord2) {
         // Add slight delay to make the AI moves visible
         await sleep(500);
+        
+        // Calculate unlocked tiles for scoring
+        const unlockedTiles = this.countUnlockedTiles([coord1, coord2]);
         
         // Select first tile
         this.game.selectTileAt(coord1);
@@ -70,7 +108,8 @@ export class EasyAI extends MahjongAI {
         const tile1 = tileAt(coord1, this.game.gameId);
         const tile2 = tileAt(coord2, this.game.gameId);
         
-        await this.game.executeMove(tile2, tile1, coord2, coord1);
+        // Update the executeMove function to pass the unlocked tiles count
+        await this.game.executeMove(tile2, tile1, coord2, coord1, unlockedTiles);
     }
 }
 
@@ -93,7 +132,8 @@ export class MediumAI extends MahjongAI {
         const scoredMoves = moves.map(move => {
             return {
                 move: move,
-                score: this.evaluateMove(move)
+                score: this.evaluateMove(move),
+                unlockedTiles: this.countUnlockedTiles(move)
             };
         });
         
@@ -101,33 +141,17 @@ export class MediumAI extends MahjongAI {
         scoredMoves.sort((a, b) => b.score - a.score);
         
         // Pick the best move
-        const bestMove = scoredMoves[0].move;
-        await this.executeAIMove(bestMove[0], bestMove[1]);
+        const bestMove = scoredMoves[0];
+        await this.executeAIMove(bestMove.move[0], bestMove.move[1], bestMove.unlockedTiles);
     }
     
     // Score a move based on how many tiles it would potentially unlock
     evaluateMove(move) {
-        const [coord1, coord2] = move;
-        
-        // Make a copy of current coords
-        const tempCoords = [...this.game.currentCoords];
-        
-        // Remove the two tiles to simulate making this move
-        tempCoords.splice(tempCoords.findIndex(c => c.toString() === coord1.toString()), 1);
-        tempCoords.splice(tempCoords.findIndex(c => c.toString() === coord2.toString()), 1);
-        
-        // Count how many open tiles we'd have after making this move
-        let openCount = 0;
-        for (const coord of tempCoords) {
-            if (isOpen(coord, tempCoords)) {
-                openCount++;
-            }
-        }
-        
-        return openCount;
+        const unlockedTiles = this.countUnlockedTiles(move);
+        return unlockedTiles * 10; // Weight unlocked tiles heavily
     }
     
-    async executeAIMove(coord1, coord2) {
+    async executeAIMove(coord1, coord2, unlockedTiles = 0) {
         // Add slight delay to make the AI moves visible
         await sleep(400);
         
@@ -139,16 +163,18 @@ export class MediumAI extends MahjongAI {
         const tile1 = tileAt(coord1, this.game.gameId);
         const tile2 = tileAt(coord2, this.game.gameId);
         
-        await this.game.executeMove(tile2, tile1, coord2, coord1);
+        // Pass unlocked tiles count for scoring
+        await this.game.executeMove(tile2, tile1, coord2, coord1, unlockedTiles);
     }
 }
 
-// Hard Level: Minimax Agent with Search Tree
+// Hard Level: Improved search with performance optimizations
 export class HardAI extends MahjongAI {
     constructor(gameInstance) {
         super(gameInstance);
         this.difficultyLevel = "Hard";
-        this.maxDepth = 3; // Look ahead this many moves
+        this.maxDepth = 2; // Reduced from 3 to avoid freezing
+        this.moveCache = new Map(); // Cache for move evaluations
     }
 
     async makeMove() {
@@ -159,83 +185,77 @@ export class HardAI extends MahjongAI {
         
         if (moves.length === 0) return;
         
-        // Find the best move using minimax
-        let bestScore = -Infinity;
-        let bestMove = null;
+        // Performance optimization - if too many moves, limit search depth
+        if (moves.length > 20) {
+            this.maxDepth = 1;
+        } else {
+            this.maxDepth = 2;
+        }
+        
+        // Score each move with limited lookahead
+        const scoredMoves = [];
         
         for (const move of moves) {
-            // Simulate making this move
-            const tempCoords = [...this.game.currentCoords];
-            tempCoords.splice(tempCoords.findIndex(c => c.toString() === move[0].toString()), 1);
-            tempCoords.splice(tempCoords.findIndex(c => c.toString() === move[1].toString()), 1);
+            const unlockedTiles = this.countUnlockedTiles(move);
+            const lookAheadScore = this.evaluateLookAhead(move, this.maxDepth);
             
-            // Calculate score through minimax
-            const score = this.minimax(tempCoords, 1, false);
-            
-            if (score > bestScore) {
-                bestScore = score;
-                bestMove = move;
-            }
+            scoredMoves.push({
+                move: move,
+                score: lookAheadScore,
+                unlockedTiles: unlockedTiles
+            });
         }
         
-        if (bestMove) {
-            await this.executeAIMove(bestMove[0], bestMove[1]);
-        }
+        // Sort by score (descending)
+        scoredMoves.sort((a, b) => b.score - a.score);
+        
+        // Pick one of the top moves (add some randomness to make it less predictable)
+        const topMoves = scoredMoves.slice(0, Math.min(3, scoredMoves.length));
+        const selectedMove = randEl(topMoves);
+        
+        await this.executeAIMove(
+            selectedMove.move[0], 
+            selectedMove.move[1], 
+            selectedMove.unlockedTiles
+        );
     }
     
-    // Minimax algorithm with alpha-beta pruning
-    minimax(coords, depth, isMaximizing, alpha = -Infinity, beta = Infinity) {
-        // Terminal conditions
-        if (depth === this.maxDepth || coords.length === 0) {
-            return this.evaluateBoard(coords, isMaximizing);
+    // Evaluate a move with limited lookahead
+    evaluateLookAhead(move, depth) {
+        const [coord1, coord2] = move;
+        
+        // Calculate immediate benefit
+        const unlockedTiles = this.countUnlockedTiles(move);
+        let score = unlockedTiles * 10;
+        
+        // Base case - no more lookahead
+        if (depth <= 0) return score;
+        
+        // Create new board state after this move
+        const newCoords = [...this.game.currentCoords].filter(c => 
+            c.toString() !== coord1.toString() && 
+            c.toString() !== coord2.toString()
+        );
+        
+        // Find all possible next moves in this state
+        const nextMoves = this.findMovesForCoords(newCoords);
+        
+        if (nextMoves.length === 0) {
+            // Game would end after this move - penalize slightly
+            return score - 5; 
         }
         
-        // Find all possible moves in this state
-        const moves = this.findMovesForCoords(coords);
-        
-        if (moves.length === 0) {
-            return isMaximizing ? -1000 : 1000; // Game over, no moves left
+        // Get the best next move score with reduced depth
+        let bestNextScore = -Infinity;
+        for (const nextMove of nextMoves.slice(0, 5)) { // Limit to top 5 moves for performance
+            const nextMoveScore = this.evaluateLookAhead(nextMove, depth - 1);
+            bestNextScore = Math.max(bestNextScore, nextMoveScore);
         }
         
-        if (isMaximizing) {
-            let bestScore = -Infinity;
-            
-            for (const move of moves) {
-                // Create a new board state after this move
-                const newCoords = [...coords];
-                newCoords.splice(newCoords.findIndex(c => c.toString() === move[0].toString()), 1);
-                newCoords.splice(newCoords.findIndex(c => c.toString() === move[1].toString()), 1);
-                
-                // Recurse
-                const score = this.minimax(newCoords, depth + 1, false, alpha, beta);
-                bestScore = Math.max(score, bestScore);
-                
-                // Alpha-beta pruning
-                alpha = Math.max(alpha, bestScore);
-                if (beta <= alpha) break;
-            }
-            
-            return bestScore;
-        } else {
-            let bestScore = Infinity;
-            
-            for (const move of moves) {
-                // Create a new board state after this move
-                const newCoords = [...coords];
-                newCoords.splice(newCoords.findIndex(c => c.toString() === move[0].toString()), 1);
-                newCoords.splice(newCoords.findIndex(c => c.toString() === move[1].toString()), 1);
-                
-                // Recurse
-                const score = this.minimax(newCoords, depth + 1, true, alpha, beta);
-                bestScore = Math.min(score, bestScore);
-                
-                // Alpha-beta pruning
-                beta = Math.min(beta, bestScore);
-                if (beta <= alpha) break;
-            }
-            
-            return bestScore;
-        }
+        // Add a portion of the best next move score
+        score += bestNextScore * 0.7; // Discount future moves
+        
+        return score;
     }
     
     // Find all possible moves for a given set of coordinates
@@ -260,35 +280,7 @@ export class HardAI extends MahjongAI {
         return moves;
     }
     
-    // Evaluation function for the minimax algorithm
-    evaluateBoard(coords, isMaximizing) {
-        // Count available moves
-        const moves = this.findMovesForCoords(coords);
-        
-        // Calculate mobility (available moves)
-        const mobility = moves.length;
-        
-        // Count open tiles
-        let openTiles = 0;
-        for (const coord of coords) {
-            if (isOpen(coord, coords)) {
-                openTiles++;
-            }
-        }
-        
-        // Scoring:
-        // - If maximizing (AI's turn), prefer states with more moves
-        // - If minimizing (Player's turn), prefer states with fewer moves
-        const mobilityScore = isMaximizing ? mobility : -mobility;
-        
-        // Also consider how many tiles are left overall
-        const tilesRemaining = coords.length;
-        const tilesScore = -tilesRemaining; // Prefer fewer tiles
-        
-        return mobilityScore * 2 + tilesScore + openTiles;
-    }
-    
-    async executeAIMove(coord1, coord2) {
+    async executeAIMove(coord1, coord2, unlockedTiles = 0) {
         // Add slight delay to make the AI moves visible
         await sleep(350);
         
@@ -300,7 +292,8 @@ export class HardAI extends MahjongAI {
         const tile1 = tileAt(coord1, this.game.gameId);
         const tile2 = tileAt(coord2, this.game.gameId);
         
-        await this.game.executeMove(tile2, tile1, coord2, coord1);
+        // Pass unlocked tiles count for scoring
+        await this.game.executeMove(tile2, tile1, coord2, coord1, unlockedTiles);
     }
 }
 
