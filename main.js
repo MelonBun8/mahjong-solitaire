@@ -9,7 +9,7 @@ import {
     randEl,
     sleep,
 } from "./utils.js";
-import { isOpen, COORDINATES } from "./coordinates.js";
+import { isOpen, COORDINATES, updateCoordinates } from "./coordinates.js";
 import {} from "./infoText.js";
 import { createAI } from "./mahjongAI.js";
 import { ScoreSystem } from "./scoreSystem.js";
@@ -18,6 +18,7 @@ import { GameOutcome } from "./gameOutcome.js";
 // Global instances for score and outcome
 const scoreSystem = new ScoreSystem();
 const gameOutcome = new GameOutcome();
+let currentDifficulty = "Medium"; // Default difficulty
 
 class GameInstance {
     constructor(gameId, playerNumber) {
@@ -32,7 +33,7 @@ class GameInstance {
         
         if (this.isAI) {
             // Initialize AI with Medium difficulty by default
-            this.ai = createAI(this, "Medium");
+            this.ai = createAI(this, currentDifficulty);
         }
     }
     
@@ -58,7 +59,6 @@ class GameInstance {
         this.selectTileAt(coord);
     }
 
-    // Replace the executeMove method in your GameInstance class with this updated version
     async executeMove(tile, selectedTile, coord, coord2, unlockedTiles = 0) { 
         this.selectedCoord = null;
         this.hintCoord = null;
@@ -106,7 +106,6 @@ class GameInstance {
         });
     }
 
-
     calculateUnlockedTiles(move) {
         const [coord1, coord2] = move;
         
@@ -140,6 +139,7 @@ class GameInstance {
         // Return the difference (how many new tiles were unlocked)
         return Math.max(0, newOpenCount - originalOpenCount);
     }
+    
     // Animate points display
     animatePoints(points, coord) {
         const [x, y, z] = coord;
@@ -269,11 +269,75 @@ class GameInstance {
 
 let game1, game2;
 
-$(document).ready(async () => {
+// Function to change difficulty and update the board
+async function changeDifficulty(difficulty) {
+    currentDifficulty = difficulty;
+    
+    // Update coordinates based on difficulty
+    updateCoordinates(difficulty);
+    
+    // Update AI difficulty
+    if (game2) {
+        game2.ai = createAI(game2, difficulty);
+    }
+    
+    await restartGame();
+    
+    // Update visual indicator of difficulty level
+    $(".difficulty-badge").remove();
+    $("header").append(`<div class="difficulty-badge">${difficulty} Mode</div>`);
+}
+
+// Function to restart the game
+async function restartGame() {
+    $("#game1, #game2").animate({ opacity: 0 }, "fast");
+    
+    // Clear existing tiles
+    $("#game1 .tile, #game2 .tile").remove();
+    
+    await sleep(200);
+    
+    // Shuffle images for new layout
+    // We need to limit the images to match the number of coordinates
     shuffle(images);
+    const neededImages = images.slice(0, COORDINATES.length);
+    
+    // Reset scores
+    scoreSystem.reset();
+    
+    // Re-create both games with the new layout
+    game1 = new GameInstance("game1", 1);
+    game2 = new GameInstance("game2", 2);
+    
+    // Create tiles for both games with the new layout
+    createTiles({ clickFunction: (coord) => game1.clickTileAt(coord) }, "game1");
+    createTiles({ clickFunction: () => {} }, "game2"); // AI game doesn't need click handlers
+    
+    // Initialize both games
+    await game1.checkMovePossible();
+    await game2.checkMovePossible();
+    
+    $("#game1, #game2").animate({ opacity: 1 }, "fast");
+    
+    // Let AI make first move after restart (randomly decide who goes first)
+    if (Math.random() > 0.5) {
+        await sleep(500);
+        await game2.makeAIMove();
+    }
+}
+
+$(document).ready(async () => {
+    // Initial shuffling of all images
+    shuffle(images);
+    
+    // Start with medium difficulty
+    updateCoordinates("Medium");
     
     // Add score displays to player labels
     addScoreDisplays();
+    
+    // Add difficulty badge to header
+    $("header").append('<div class="difficulty-badge">Medium Mode</div>');
     
     // Initialize both game instances
     game1 = new GameInstance("game1", 1);
@@ -324,28 +388,13 @@ function addDifficultyControls() {
     // Handle difficulty change
     $("#difficultySelect").change(function() {
         const difficulty = $(this).val();
-        game2.ai = createAI(game2, difficulty);
-        writeStatus(`AI set to ${difficulty} level`, 2);
+        changeDifficulty(difficulty);
+        writeStatus(`Difficulty set to ${difficulty}`, 0);
     });
 }
 
-$("#restartButton").click(async () => {
-    $("#game1, #game2").animate({ opacity: 0 }, "fast");
-    await sleep(200);
-    shuffle(images);
-    
-    // Reset scores
-    scoreSystem.reset();
-    
-    await game1.restart();
-    await game2.restart();
-    $("#game1, #game2").animate({ opacity: 1 }, "fast");
-    
-    // Let AI make first move after restart (randomly decide who goes first)
-    if (Math.random() > 0.5) {
-        await sleep(500);
-        await game2.makeAIMove();
-    }
+$("#restartButton").click(() => {
+    restartGame();
 });
 
 $("#hintButton1").click(() => {

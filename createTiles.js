@@ -6,15 +6,25 @@ const TILE_ROUNDNESS = 7;
 const VERTICAL_OFFSET = 40; // Space from top of container
 
 export function createTiles(options, gameId = "game") {
+    // Get the required number of images based on coordinates length
+    const requiredImages = images.slice(0, COORDINATES.length);
+    
     // Calculate maximum x coordinate to determine center offset
     const maxX = Math.max(...COORDINATES.map(coord => coord[0]));
+    const minX = Math.min(...COORDINATES.map(coord => coord[0]));
     const containerWidth = $(`#${gameId}`).width();
-    const HORIZONTAL_OFFSET = (containerWidth - (maxX * TILE_WIDTH) - (TILE_DEPTH * 4)) / 2;
+    
+    // Dynamically adjust horizontal offset based on layout size
+    const layoutWidth = (maxX - minX) * TILE_WIDTH;
+    const HORIZONTAL_OFFSET = (containerWidth - layoutWidth - (TILE_DEPTH * 4)) / 2;
 
     for (let counter = 0; counter < COORDINATES.length; counter++) {
         const coord = COORDINATES[counter];
         const [x, y, z] = coord;
-        const image = images[counter];
+        
+        // Make sure we don't exceed the image array bounds
+        const imageIndex = counter % requiredImages.length;
+        const image = requiredImages[imageIndex];
 
         const tile = $("<div></div>")
             .addClass("tile")
@@ -27,7 +37,6 @@ export function createTiles(options, gameId = "game") {
             .attr("type", image.attr("type"))
             .attr("game-id", gameId);
 
-        // Rest of the tile creation code remains the same...
         const tileFront = $("<div></div>")
             .addClass("tileFront")
             .css({
